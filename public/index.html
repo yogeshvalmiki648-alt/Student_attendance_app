@@ -37,18 +37,31 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); font-size:0.9rem; }
         th { background-color: #edf2f7; font-weight: 600; }
+        .notice-item { padding:12px 0; border-bottom:1px solid var(--border-color); }
+        .notice-item:last-child { border-bottom:none; }
+        .notice-title { font-weight:700; color:var(--text-color); }
+        .notice-meta { font-size:0.78rem; color:#718096; margin-top:4px; }
+        .empty-msg { font-size:0.85rem; color:#718096; }
+        .doc-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-color); font-size:0.9rem; }
+        .doc-item:last-child { border-bottom:none; }
+        .doc-link { color: var(--primary-color); text-decoration:none; font-weight:600; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            
+            <img src="logo.png" alt="SIAS Logo">
             <div>
                 <h1>Saharanpur Institute of Advance Studies</h1>
                 <p class="college-badge" id="welcomeText">Loading...</p>
             </div>
             <button class="logout-btn" id="logoutBtn">Logout</button>
         </header>
+
+        <div class="card">
+            <h2>Notice Board</h2>
+            <div id="noticesList"><p class="empty-msg">Loading notices...</p></div>
+        </div>
 
         <div class="card">
             <h2>My Details</h2>
@@ -63,6 +76,19 @@
             <h2>Mark Today's Attendance</h2>
             <button class="mark-btn" id="markBtn">Mark Attendance</button>
             <div class="status-msg" id="statusMsg"></div>
+        </div>
+
+        <div class="card">
+            <h2>Check University Result</h2>
+            <p style="font-size:0.85rem; color:#718096; margin-bottom:12px;">Check your semester result on the official Maa Shakumbhari University portal (Roll Number / Enrollment Number required).</p>
+            <a href="https://msuresults.com/" target="_blank" rel="noopener noreferrer">
+                <button class="mark-btn" style="background-color:#2b6cb0;">Check Result</button>
+            </a>
+        </div>
+
+        <div class="card">
+            <h2>Documents</h2>
+            <div id="documentsList"><p class="empty-msg">Loading documents...</p></div>
         </div>
 
         <div class="card">
