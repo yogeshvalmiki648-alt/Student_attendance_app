@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owner Panel - All Colleges</title>
+<style>
+  :root {
+    --primary-color: #2b6cb0;
+    --bg-color: #f7fafc;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --present-color: #48bb78;
+    --absent-color: #f56565;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  body { background: var(--bg-color); padding: 20px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 20px; padding: 20px; background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+  header h1 { color: var(--primary-color); font-size: 1.3rem; }
+  .logout-btn { background:#edf2f7; border:1px solid var(--border-color); padding:8px 14px; border-radius:4px; cursor:pointer; font-weight:600; }
+  .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom:20px; }
+  .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px; align-items:center; }
+  select { padding:8px 12px; border:1px solid var(--border-color); border-radius:4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+  th { background-color: #edf2f7; font-weight: 600; }
+  .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: white; display: inline-block; }
+  .badge-present { background-color: var(--present-color); }
+  .badge-absent { background-color: var(--absent-color); }
+  .stat { font-size:0.9rem; color:#718096; margin-bottom:10px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Owner Panel — All Colleges</h1>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </header>
+
+    <div class="card">
+      <div class="filter-row">
+        <label for="collegeFilter"><strong>Filter by College:</strong></label>
+        <select id="collegeFilter">
+          <option value="all">All Colleges</option>
+        </select>
+      </div>
+      <div class="stat" id="statLine"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>College</th>
+              <th>Roll No</th>
+              <th>Name</th>
+              <th>Class</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="allStudentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script>
+    let allStudents = [];
+
+    async function requireSuperAdmin() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'login.html'; return null; }
+
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+        if (!profile || profile.role !== 'super_admin') {
+            window.location.href = 'index.html';
+            return null;
+        }
+        return profile;
+    }
+
+    async function loadAllStudents() {
+        const { data, error } = await supabaseClient
+            .from('students')
+            .select('*')
+            .order('college_name', { ascending: true });
+
+        if (error) { console.error(error); return; }
+        allStudents = data;
+        populateCollegeFilter(data);
+        renderTable(data);
+    }
+
+    function populateCollegeFilter(data) {
+        const select = document.getElementById('collegeFilter');
+        const colleges = [...new Set(data.map(s => s.college_name))];
+        colleges.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+    }
+
+    function renderTable(data) {
+        const body = document.getElementById('allStudentsBody');
+        body.innerHTML = '';
+        data.forEach(s => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${s.college_name}</td>
+                <td>${s.roll_no}</td>
+                <td>${s.name}</td>
+                <td>${s.student_class}</td>
+                <td><span class="badge ${s.is_present ? 'badge-present' : 'badge-absent'}">${s.is_present ? 'Present' : 'Absent'}</span></td>
+            `;
+            body.appendChild(row);
+        });
+        document.getElementById('statLine').textContent = `Total Students: ${data.length}`;
+    }
+
+    document.getElementById('collegeFilter').addEventListener('change', (e) => {
+        const val = e.target.value;
+        const filtered = val === 'all' ? allStudents : allStudents.filter(s => s.college_name === val);
+        renderTable(filtered);
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html';
+    });
+
+    (async function init() {
+        const profile = await requireSuperAdmin();
+        if (!profile) return;
+        loadAllStudents();
+    })();
+  </script>
+</body>
+</html>
