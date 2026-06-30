@@ -11,6 +11,7 @@
     --card-bg: #ffffff;
     --border-color: #e2e8f0;
     --present-color: #48bb78;
+    --absent-color: #f56565;
   }
   * { box-sizing: border-box; margin:0; padding:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
   body { background: var(--bg-color); padding: 20px; }
@@ -20,22 +21,39 @@
   header h1 { color: var(--primary-color); font-size: 1.15rem; }
   .logout-btn { background:#edf2f7; border:1px solid var(--border-color); padding:8px 14px; border-radius:4px; cursor:pointer; font-weight:600; margin-left:auto; }
   .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom:20px; }
+  .card h2 { margin-bottom: 15px; font-size: 1.1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; color: var(--primary-color); }
   .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px; align-items:center; }
   select { padding:8px 12px; border:1px solid var(--border-color); border-radius:4px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size:0.9rem; }
   th { background-color: #edf2f7; font-weight: 600; }
   .stat { font-size:0.9rem; color:#718096; margin-bottom:10px; }
+  .form-group { margin-bottom: 15px; }
+  label { display:block; margin-bottom:5px; font-weight:600; font-size:0.9rem; }
+  input, textarea { width:100%; padding:10px 12px; border:1px solid var(--border-color); border-radius:4px; outline:none; font-family:inherit; }
+  textarea { resize:vertical; min-height:80px; }
+  .btn { background:#2b6cb0; color:#fff; padding:10px 15px; border:none; border-radius:4px; cursor:pointer; font-weight:600; }
+  .btn:hover { background:#2c5282; }
+  .list-item { padding:12px 0; border-bottom:1px solid var(--border-color); }
+  .list-item:last-child { border-bottom:none; }
+  .list-item-title { font-weight:700; }
+  .list-item-meta { font-size:0.8rem; color:#718096; margin-top:2px; }
+  .delete-link { color: var(--absent-color); font-size:0.8rem; cursor:pointer; background:none; border:none; padding:0; margin-top:6px; }
+  .msg { margin-top:10px; font-size:0.85rem; }
+  .error { color: var(--absent-color); }
+  .success { color: var(--present-color); }
 </style>
 </head>
 <body>
   <div class="container">
     <header>
+      <img src="logo.png" alt="SIAS Logo">
       <h1>Owner Panel — All Colleges</h1>
       <button class="logout-btn" id="logoutBtn">Logout</button>
     </header>
 
     <div class="card">
+      <h2>Students</h2>
       <div class="filter-row">
         <label for="collegeFilter"><strong>Filter by College:</strong></label>
         <select id="collegeFilter">
@@ -59,6 +77,42 @@
           <tbody id="allStudentsBody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>Post a Notice</h2>
+      <form id="noticeForm">
+        <div class="form-group">
+          <label for="noticeTitle">Title</label>
+          <input type="text" id="noticeTitle" required placeholder="e.g. Exam Schedule Released">
+        </div>
+        <div class="form-group">
+          <label for="noticeContent">Content</label>
+          <textarea id="noticeContent" required placeholder="Write the notice details here..."></textarea>
+        </div>
+        <button type="submit" class="btn">Post Notice</button>
+        <div class="msg error" id="noticeError"></div>
+        <div class="msg success" id="noticeSuccess"></div>
+      </form>
+      <div id="noticesList" style="margin-top:15px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Upload Document (PDF)</h2>
+      <form id="uploadForm">
+        <div class="form-group">
+          <label for="docTitle">Document Title</label>
+          <input type="text" id="docTitle" required placeholder="e.g. Semester 1 Timetable">
+        </div>
+        <div class="form-group">
+          <label for="docFile">PDF File</label>
+          <input type="file" id="docFile" accept="application/pdf" required>
+        </div>
+        <button type="submit" class="btn">Upload</button>
+        <div class="msg error" id="uploadError"></div>
+        <div class="msg success" id="uploadSuccess"></div>
+      </form>
+      <div id="documentsList" style="margin-top:15px;"></div>
     </div>
   </div>
 
@@ -146,6 +200,125 @@
         renderTable(filtered);
     });
 
+    // ===== Notices =====
+    async function loadNotices() {
+        const { data, error } = await supabaseClient
+            .from('notices')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) { console.error(error); return; }
+
+        const list = document.getElementById('noticesList');
+        list.innerHTML = '';
+        data.forEach(n => {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            const date = new Date(n.created_at).toLocaleString();
+            div.innerHTML = `
+                <div class="list-item-title">${n.title}</div>
+                <div>${n.content}</div>
+                <div class="list-item-meta">${date}</div>
+                <button class="delete-link" data-id="${n.id}">Delete</button>
+            `;
+            list.appendChild(div);
+        });
+
+        list.querySelectorAll('.delete-link').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                await supabaseClient.from('notices').delete().eq('id', id);
+                loadNotices();
+            });
+        });
+    }
+
+    document.getElementById('noticeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorEl = document.getElementById('noticeError');
+        const successEl = document.getElementById('noticeSuccess');
+        errorEl.textContent = '';
+        successEl.textContent = '';
+
+        const title = document.getElementById('noticeTitle').value;
+        const content = document.getElementById('noticeContent').value;
+
+        const { error } = await supabaseClient.from('notices').insert([{ title, content }]);
+
+        if (error) {
+            errorEl.textContent = error.message;
+            return;
+        }
+
+        successEl.textContent = 'Notice posted!';
+        document.getElementById('noticeForm').reset();
+        loadNotices();
+    });
+
+    // ===== Documents (PDF) =====
+    async function loadDocuments() {
+        const { data, error } = await supabaseClient.storage.from('documents').list('', {
+            sortBy: { column: 'created_at', order: 'desc' }
+        });
+
+        if (error) { console.error(error); return; }
+
+        const list = document.getElementById('documentsList');
+        list.innerHTML = '';
+        (data || []).filter(f => f.name !== '.emptyFolderPlaceholder').forEach(file => {
+            const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(file.name);
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <div class="list-item-title">${file.name}</div>
+                <a href="${urlData.publicUrl}" target="_blank" rel="noopener noreferrer">View / Download</a>
+                <button class="delete-link" data-name="${file.name}">Delete</button>
+            `;
+            list.appendChild(div);
+        });
+
+        list.querySelectorAll('.delete-link').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const name = btn.getAttribute('data-name');
+                await supabaseClient.storage.from('documents').remove([name]);
+                loadDocuments();
+            });
+        });
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorEl = document.getElementById('uploadError');
+        const successEl = document.getElementById('uploadSuccess');
+        errorEl.textContent = '';
+        successEl.textContent = '';
+
+        const title = document.getElementById('docTitle').value;
+        const fileInput = document.getElementById('docFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            errorEl.textContent = 'Please choose a PDF file.';
+            return;
+        }
+
+        const safeName = title.replace(/[^a-zA-Z0-9_\-\. ]/g, '').trim() || file.name;
+        const fileName = `${Date.now()}_${safeName}.pdf`;
+
+        const { error } = await supabaseClient.storage.from('documents').upload(fileName, file, {
+            contentType: 'application/pdf'
+        });
+
+        if (error) {
+            errorEl.textContent = error.message;
+            return;
+        }
+
+        successEl.textContent = 'Document uploaded!';
+        document.getElementById('uploadForm').reset();
+        loadDocuments();
+    });
+
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         await supabaseClient.auth.signOut();
         window.location.href = 'login.html';
@@ -155,6 +328,8 @@
         const profile = await requireSuperAdmin();
         if (!profile) return;
         loadAllStudents();
+        loadNotices();
+        loadDocuments();
     })();
   </script>
 </body>
