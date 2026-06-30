@@ -1,12 +1,38 @@
-const API_URL = window.location.origin + '/api/students';
+let currentCollege = null;
+
+async function requireLogin() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = 'login.html';
+        return null;
+    }
+    const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('college_name, role')
+        .eq('id', session.user.id)
+        .single();
+
+    if (profile && profile.role === 'super_admin') {
+        window.location.href = 'admin.html';
+        return null;
+    }
+
+    return profile;
+}
 
 const studentForm = document.getElementById('studentForm');
 const studentTableBody = document.getElementById('studentTableBody');
+const collegeBadge = document.getElementById('collegeBadge');
+const logoutBtn = document.getElementById('logoutBtn');
 
 async function loadStudents() {
     try {
-        const response = await fetch(API_URL);
-        const students = await response.json();
+        const { data: students, error } = await supabaseClient
+            .from('students')
+            .select('*')
+            .order('id', { ascending: true });
+
+        if (error) throw error;
         renderStudents(students);
     } catch (err) {
         console.error("Error loading data:", err);
@@ -16,7 +42,7 @@ async function loadStudents() {
 function renderStudents(students) {
     if (!studentTableBody) return;
     studentTableBody.innerHTML = '';
-    
+
     students.forEach((student) => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -40,36 +66,39 @@ function renderStudents(students) {
 if (studentForm) {
     studentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const rollInput = document.getElementById('studentId');
         const nameInput = document.getElementById('studentName');
         const classInput = document.getElementById('studentClass');
-        
+
         try {
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const { error } = await supabaseClient
+                .from('students')
+                .insert([{
                     roll_no: rollInput.value,
                     name: nameInput.value,
-                    student_class: classInput.value
-                })
-            });
+                    student_class: classInput.value,
+                    is_present: true,
+                    college_name: currentCollege
+                }]);
+
+            if (error) throw error;
             loadStudents();
             studentForm.reset();
         } catch (err) {
             console.error("Error adding student:", err);
+            alert("Error: " + err.message);
         }
     });
 }
 
 window.toggleAttendance = async function(id, currentStatus) {
     try {
-        await fetch(`${API_URL}/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_present: !currentStatus })
-        });
+        const { error } = await supabaseClient
+            .from('students')
+            .update({ is_present: !currentStatus })
+            .eq('id', id);
+        if (error) throw error;
         loadStudents();
     } catch (err) {
         console.error("Error toggling attendance:", err);
@@ -77,9 +106,10 @@ window.toggleAttendance = async function(id, currentStatus) {
 };
 
 window.deleteStudent = async function(id) {
-    if(confirm("Kya aap is student ka record delete karna chahte hain?")) {
+    if (confirm("Kya aap is student ka record delete karna chahte hain?")) {
         try {
-            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            const { error } = await supabaseClient.from('students').delete().eq('id', id);
+            if (error) throw error;
             loadStudents();
         } catch (err) {
             console.error("Error deleting student:", err);
@@ -87,4 +117,17 @@ window.deleteStudent = async function(id) {
     }
 };
 
-loadStudents();
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html';
+    });
+}
+
+(async function init() {
+    const profile = await requireLogin();
+    if (!profile) return;
+    currentCollege = profile.college_name;
+    if (collegeBadge) collegeBadge.textContent = "College: " + profile.college_name;
+    loadStudents();
+})();
