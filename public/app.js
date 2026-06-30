@@ -31,6 +31,8 @@ const markBtn = document.getElementById('markBtn');
 const statusMsg = document.getElementById('statusMsg');
 const attendanceBody = document.getElementById('attendanceBody');
 const logoutBtn = document.getElementById('logoutBtn');
+const noticesList = document.getElementById('noticesList');
+const documentsList = document.getElementById('documentsList');
 
 async function loadMyDetails() {
     const { data: student, error } = await supabaseClient
@@ -82,6 +84,68 @@ async function loadAttendanceHistory() {
     }
 }
 
+async function loadNotices() {
+    if (!noticesList) return;
+    const { data, error } = await supabaseClient
+        .from('notices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        noticesList.innerHTML = '<p class="empty-msg">Could not load notices.</p>';
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        noticesList.innerHTML = '<p class="empty-msg">No notices yet.</p>';
+        return;
+    }
+
+    noticesList.innerHTML = '';
+    data.forEach(n => {
+        const date = new Date(n.created_at).toLocaleString();
+        const div = document.createElement('div');
+        div.className = 'notice-item';
+        div.innerHTML = `
+            <div class="notice-title">${n.title}</div>
+            <div>${n.content}</div>
+            <div class="notice-meta">${date}</div>
+        `;
+        noticesList.appendChild(div);
+    });
+}
+
+async function loadDocuments() {
+    if (!documentsList) return;
+    const { data, error } = await supabaseClient.storage.from('documents').list('', {
+        sortBy: { column: 'created_at', order: 'desc' }
+    });
+
+    if (error) {
+        documentsList.innerHTML = '<p class="empty-msg">Could not load documents.</p>';
+        return;
+    }
+
+    const files = (data || []).filter(f => f.name !== '.emptyFolderPlaceholder');
+
+    if (files.length === 0) {
+        documentsList.innerHTML = '<p class="empty-msg">No documents available yet.</p>';
+        return;
+    }
+
+    documentsList.innerHTML = '';
+    files.forEach(file => {
+        const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(file.name);
+        const div = document.createElement('div');
+        div.className = 'doc-item';
+        div.innerHTML = `
+            <span>${file.name}</span>
+            <a class="doc-link" href="${urlData.publicUrl}" target="_blank" rel="noopener noreferrer">Download</a>
+        `;
+        documentsList.appendChild(div);
+    });
+}
+
 if (markBtn) {
     markBtn.addEventListener('click', async () => {
         markBtn.disabled = true;
@@ -125,4 +189,6 @@ if (logoutBtn) {
     currentUserId = user.id;
     await loadMyDetails();
     await loadAttendanceHistory();
+    await loadNotices();
+    await loadDocuments();
 })();
