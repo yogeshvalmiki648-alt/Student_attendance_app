@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login - Student Attendance System</title>
+<title>Login - SIAS</title>
 <style>
   * { box-sizing: border-box; margin:0; padding:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
   body { background:#f7fafc; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
   .card { background:#fff; padding:30px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.05); max-width:380px; width:100%; }
-  h1 { color:#2b6cb0; margin-bottom:20px; font-size:1.4rem; text-align:center; }
+  .logo { width:80px; height:80px; display:block; margin:0 auto 12px; }
+  h1 { color:#2b6cb0; margin-bottom:4px; font-size:1.15rem; text-align:center; }
+  .subtitle { text-align:center; color:#718096; font-size:0.85rem; margin-bottom:20px; }
   .form-group { margin-bottom:15px; }
   label { display:block; margin-bottom:5px; font-weight:600; font-size:0.9rem; }
   input { width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:4px; outline:none; }
@@ -23,7 +25,9 @@
 </head>
 <body>
   <div class="card">
-    <h1>College Admin Login</h1>
+    <img src="logo.png" alt="SIAS Logo" class="logo">
+    <h1>Saharanpur Institute of Advance Studies</h1>
+    <p class="subtitle">Student Login</p>
     <form id="loginForm">
       <div class="form-group">
         <label for="email">Email</label>
@@ -37,7 +41,7 @@
       <div class="msg error" id="errorMsg"></div>
     </form>
     <div class="footer">
-      <span>New college? </span><a href="signup.html">Sign Up</a>
+      <span>New student? </span><a href="signup.html">Register</a>
     </div>
     <div class="owner-link">
       <a href="admin.html">Owner Panel</a>
@@ -67,7 +71,7 @@
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
       if (profile && profile.role === 'super_admin') {
         window.location.href = 'admin.html';
